@@ -43,6 +43,8 @@
       for (const w of lugares(win)) { try { w.localStorage.setItem(CHAVE, JSON.stringify(pref)); } catch (e) {} }
     }
 
+    const escala = () => Math.min(2.6, Math.max(0.7, +(pref && pref.s) || 1));
+
     function render(doc, itens, temaId) {
       if (!doc || !doc.body) return;
       ultimo = { doc, itens, tema: temaId };
@@ -55,15 +57,21 @@
       box.style.background = T.bg;
       box.style.borderColor = T.borda;
       const min = !!pref.min;
+      const s = escala();
+      box.style.width = Math.round(235 * s) + "px";
+      box.style.fontSize = (10.5 * s).toFixed(1) + "px";
       const n = itens.filter((i) => i.ok).length;
       // minimalista: uma linha por item (bolinha + rótulo curto + valor); o valor completo aparece ao passar o mouse
+      // (medidas em em: acompanham o tamanho da letra quando o checklist é redimensionado)
       const corpo = min ? "" : itens.map((i) =>
-        `<div title="${esc(i.v)}" style="display:flex;gap:6px;padding:1px 10px;align-items:baseline">` +
-        `<span style="color:${i.ok ? T.ok : T.no};font-size:8px;line-height:1">●</span>` +
-        `<span style="width:48px;flex:none;color:${T.lab}">${esc(i.t)}</span>` +
+        `<div title="${esc(i.v)}" style="display:flex;gap:.57em;padding:.1em .95em;align-items:baseline">` +
+        `<span style="color:${i.ok ? T.ok : T.no};font-size:.76em;line-height:1">●</span>` +
+        `<span style="width:4.6em;flex:none;color:${T.lab}">${esc(i.t)}</span>` +
         `<span style="flex:1;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:${i.ok ? T.txt : T.pend}">${esc(i.v)}</span></div>`).join("");
-      const html = `<div data-acao="min" style="padding:0 10px 2px;color:${T.lab};cursor:pointer;letter-spacing:.02em">` +
-        `O.S. Rápido · ${n}/${itens.length} ${min ? "▴" : "▾"}</div>${corpo}`;
+      const grip = min ? "" : `<div data-acao="grip" title="Arraste para redimensionar" style="position:absolute;right:2px;bottom:2px;width:12px;height:12px;cursor:nwse-resize;opacity:.55">` +
+        `<svg width="12" height="12" viewBox="0 0 12 12" style="display:block;pointer-events:none"><path d="M11 3L3 11M11 7L7 11" stroke="${T.lab}" stroke-width="1.3" stroke-linecap="round" fill="none"/></svg></div>`;
+      const html = `<div data-acao="min" style="padding:0 .95em .2em;color:${T.lab};cursor:pointer;letter-spacing:.02em">` +
+        `O.S. Rápido · ${n}/${itens.length} ${min ? "▴" : "▾"}</div>${corpo}${grip}`;
       if (html !== ckHtml) { box.innerHTML = html; ckHtml = html; if (box._manter) box._manter(); }
       // primeira vez com conteúdo (ou voltou a ficar visível): aplica a posição desejada
       if (box._aplicarPendente) { box._aplicarPendente = false; if (box._aplicar) box._aplicar(); }
@@ -77,7 +85,7 @@
       box.id = ID;
       box.style.cssText = "position:fixed;right:12px;bottom:80px;z-index:2147483646;width:235px;padding:5px 0;" +
         "backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);" +
-        "border:1px solid transparent;border-radius:8px;font:10.5px/1.35 Arial,sans-serif;" +
+        "border:1px solid transparent;border-radius:8px;font-family:Arial,sans-serif;line-height:1.35;box-sizing:border-box;" +
         "opacity:.93;transition:opacity .15s;cursor:grab;user-select:none;touch-action:none";
       box.addEventListener("mouseenter", () => (box.style.opacity = "1"));
       box.addEventListener("mouseleave", () => (box.style.opacity = ".93"));
@@ -128,6 +136,12 @@
         if (ev.button !== 0) return;
         const r = box.getBoundingClientRect();
         drag = { dx: ev.clientX - r.left, dy: ev.clientY - r.top, x0: ev.clientX, y0: ev.clientY };
+        // canto de redimensionar: o arrasto muda a escala (largura + letra) em vez de mover a caixa
+        if (ev.target.closest && ev.target.closest('[data-acao="grip"]')) {
+          drag.redim = { w0: r.width, s0: escala() };
+          // ancora pelo canto superior esquerdo, para a caixa crescer para a direita/baixo junto com o mouse
+          box.style.left = r.left + "px"; box.style.top = r.top + "px"; box.style.right = "auto"; box.style.bottom = "auto";
+        }
         moveu = false;
         apertouTitulo = !!(ev.target.closest && ev.target.closest('[data-acao="min"]'));
         try { box.setPointerCapture(ev.pointerId); } catch (e) {}
@@ -136,14 +150,23 @@
         if (!drag) return;
         if (!moveu && Math.hypot(ev.clientX - drag.x0, ev.clientY - drag.y0) < 4) return;
         moveu = true;
+        if (drag.redim) {
+          const w = drag.redim.w0 + (ev.clientX - drag.x0);
+          pref.s = Math.min(2.6, Math.max(0.7, drag.redim.s0 * w / drag.redim.w0));
+          ckHtml = "";
+          if (ultimo) render(ultimo.doc, ultimo.itens, ultimo.tema);
+          return;
+        }
         box.style.cursor = "grabbing";
         const m = medidas(); if (!m) return;
         colocar(ev.clientX - drag.dx, ev.clientY - drag.dy, m);
       });
       const soltar = () => {
         if (!drag) return;
+        const eraRedim = !!drag.redim;
         drag = null;
         box.style.cursor = "grab";
+        if (eraRedim) { if (moveu) gravarPref(win); return; }
         if (moveu) { // guarda a posição como proporção do espaço livre
           const m = medidas();
           if (m) {

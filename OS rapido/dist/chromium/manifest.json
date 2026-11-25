@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "O.S. Rápido - MK",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "minimum_chrome_version": "111",
   "description": "Gera o texto da O.S. a partir do atendimento no MK e mostra o técnico da região na escala do dia (lida do site de O.S.).",
   "permissions": ["storage", "activeTab", "clipboardWrite"],
