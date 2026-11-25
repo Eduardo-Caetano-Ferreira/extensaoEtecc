@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "O.S. Rápido - MK",
+  "version": "0.9.1",
+  "minimum_chrome_version": "111",
+  "description": "Gera o texto da O.S. a partir do atendimento no MK e mostra o técnico da região na escala do dia (lida do site de O.S.).",
+  "permissions": ["storage", "activeTab", "clipboardWrite"],
+  "host_permissions": ["https://firestore.googleapis.com/*"],
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Alt+Shift+O", "mac": "Alt+Shift+O" },
+      "description": "Abrir o O.S. Rápido"
+    }
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "O.S. Rápido",
+    "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://sac.eteccnet.com.br/*"],
+      "js": ["checklist-ui.js", "mk-main.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://sac.eteccnet.com.br/*"],
+      "js": ["rota-lib.js", "mk-bridge.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://autoisp.eteccnet.com.br/*"],
+      "js": ["checklist-ui.js", "autoisp.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
